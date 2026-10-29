@@ -42,21 +42,48 @@ if (!existsSync(pagePath)) {
 
 // Each operating system has its own way of saying "open this with whatever
 // program normally handles it".
-const command =
-  process.platform === "win32"
-    ? { cmd: "cmd", args: ["/c", "start", "", pagePath] }
-    : process.platform === "darwin"
-      ? { cmd: "open", args: [pagePath] }
-      : { cmd: "xdg-open", args: [pagePath] };
+if (found.name.startsWith("checkpoint")) {
+  const port = 8000;
+  const relativePath = path
+    .relative(repoRoot, pagePath)
+    .split(path.sep)
+    .join("/");
+  const url = `http://localhost:${port}/${relativePath}`;
 
-console.log(`Opening ${found.name}/${which}.html ...`);
-console.log("");
-console.log("If nothing happens, open this file yourself:");
-console.log(`  ${pagePath}`);
+  const server = spawn(
+    "python3",
+    ["-m", "http.server", String(port)],
+    { cwd: repoRoot, stdio: "ignore", detached: true }
+  );
+  server.unref();
 
-const child = spawn(command.cmd, command.args, { stdio: "ignore", detached: true });
-child.on("error", () => {
+  console.log(`Opening ${url} ...`);
+
+  const browser = spawn("open", [url], {
+    stdio: "ignore",
+    detached: true,
+  });
+  browser.unref();
+} else {
+  const command =
+    process.platform === "win32"
+      ? { cmd: "cmd", args: ["/c", "start", "", pagePath] }
+      : process.platform === "darwin"
+        ? { cmd: "open", args: [pagePath] }
+        : { cmd: "xdg-open", args: [pagePath] };
+
+  console.log(`Opening ${found.name}/${which}.html ...`);
   console.log("");
-  console.log("Could not open a browser automatically — use the path above.");
-});
-child.unref();
+  console.log("If nothing happens, open this file yourself:");
+  console.log(`  ${pagePath}`);
+
+  const child = spawn(command.cmd, command.args, {
+    stdio: "ignore",
+    detached: true,
+  });
+  child.on("error", () => {
+    console.log("");
+    console.log("Could not open a browser automatically — use the path above.");
+  });
+  child.unref();
+}
